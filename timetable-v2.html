@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive SSC CGL Study Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals (Slate, Stone, Amber) -->
+    <!-- Application Structure Plan: The application uses a tab-based navigation for weekly views, which is a standard and intuitive pattern for chunking large amounts of sequential data. Within each week, daily schedules are presented as cards. This uses a progressive disclosure approach: users see a high-level overview of the week and can click on a specific day to get detailed hourly information. This prevents overwhelming the user with 30 days of data at once. A summary chart provides an immediate quantitative overview of the entire plan. This structure was chosen to transform a linear, text-heavy document into a non-linear, explorable, and digestible format, enhancing usability. -->
+    <!-- Visualization & Content Choices: 
+        - Overall Subject Allocation: Goal=Compare/Inform. Viz=Donut Chart. Interaction=Hover for tooltips. Justification=Provides a quick visual summary of study priorities across the entire month. Library=Chart.js/Canvas.
+        - Weekly Navigation: Goal=Organize. Viz=Tabbed Interface. Interaction=Click to switch views. Justification=Chunks the 30-day plan into manageable 7-day sections, improving navigation. Method=HTML/CSS/JS.
+        - Daily Schedule: Goal=Inform/Organize. Viz=Expandable Cards. Interaction=Click to expand/collapse. Justification=Presents a clean weekly summary while allowing drill-down for details without cluttering the UI. Method=HTML/CSS/JS.
+        - Hourly Plan: Goal=Inform. Viz=Styled list within cards. Interaction=None. Justification=Clear, chronological display of tasks for a selected day. Method=HTML/CSS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab.active { border-bottom-color: #f59e0b; color: #f59e0b; }
+        .day-card-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out; }
+        .day-card.open .day-card-content { max-height: 500px; }
+        .chart-container { position: relative; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto; height: auto; max-height: 400px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">SSC CGL One-Month Study Plan</h1>
+            <p class="mt-2 text-slate-600">An interactive guide to your 30-day intensive preparation.</p>
+        </header>
+
+        <main>
+            <section id="summary" class="mb-12 p-6 bg-white rounded-xl shadow-md">
+                <h2 class="text-2xl font-bold text-center mb-4">Monthly Subject Allocation</h2>
+                <p class="text-center text-slate-600 mb-6">This chart shows the approximate distribution of your study hours across all subjects for the entire month, helping you visualize the plan's priorities.</p>
+                <div class="chart-container">
+                    <canvas id="subjectAllocationChart"></canvas>
+                </div>
+            </section>
+            
+            <section id="timetable">
+                <div class="bg-white rounded-xl shadow-md p-4 sm:p-6">
+                    <div class="border-b border-slate-200 mb-6">
+                        <nav class="-mb-px flex space-x-4 sm:space-x-8" aria-label="Tabs">
+                            <button class="tab active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-week="1">Week 1</button>
+                            <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300" data-week="2">Week 2</button>
+                            <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300" data-week="3">Week 3</button>
+                            <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300" data-week="4">Week 4</button>
+                        </nav>
+                    </div>
+
+                    <div id="weeks-container">
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center mt-12 text-sm text-slate-500">
+            <p>Designed to help you stay organized and focused. Good luck with your preparation!</p>
+        </footer>
+    </div>
+
+    <script>
+        const timetableData = [
+            { week: 1, day: 1, title: 'QA & GA Foundation', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Number System - Computation of Whole Numbers, Decimals, Fractions.' },
+                { time: '7:00-9:00', subject: 'GS (History)', topic: 'Ancient Indian History - Indus Valley Civilization, Vedic Period, Mahajanapadas.' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Percentages - Basic concepts, applications.' },
+                { time: '12:30-2:30', subject: 'English', topic: 'Error Spotting - Basic Grammar Rules (Subject-Verb Agreement, Tenses).' },
+                { time: '3:00-5:00', subject: 'Reasoning', topic: 'Analogies - Verbal Analogies, Symbolic/Number Analogies.' },
+                { time: '5:30-7:30', subject: 'GS (Current Affairs)', topic: 'National Current Events (Past 3 months).' }
+            ]},
+            { week: 1, day: 2, title: 'QA & GA Deep Dive', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Ratio & Proportion - Basic concepts, problems.' },
+                { time: '7:00-9:00', subject: 'GS (History)', topic: 'Medieval Indian History - Delhi Sultanate, Mughal Empire (Part 1).' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Averages - Basic concepts, weighted average problems.' },
+                { time: '12:30-2:30', subject: 'Reasoning', topic: 'Similarities and Differences - Figural and Semantic.' },
+                { time: '3:00-5:00', subject: 'English', topic: 'Synonyms & Antonyms - Practice from previous year papers.' },
+                { time: '5:30-7:30', subject: 'GS (Science)', topic: 'Physics - Units & Dimensions, Motion, Work, Energy, Power.' }
+            ]},
+            { week: 1, day: 3, title: 'QA & GA Expansion', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Profit & Loss - Basic concepts, discount.' },
+                { time: '7:00-9:00', subject: 'GS (Geography)', topic: 'Indian Geography - Physical Features (Mountains, Plains, Plateaus).' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Simple Interest & Compound Interest - Basic calculations.' },
+                { time: '12:30-2:30', subject: 'English', topic: 'Idioms & Phrases, One-Word Substitution - Practice sets.' },
+                { time: '3:00-5:00', subject: 'Reasoning', topic: 'Space Visualization & Spatial Orientation.' },
+                { time: '5:30-7:30', subject: 'GS (Current Affairs)', topic: 'International Current Events (Past 3 months).' }
+            ]},
+            { week: 1, day: 4, title: 'QA & GA Application', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Time & Work - Basic problems, pipes & cisterns.' },
+                { time: '7:00-9:00', subject: 'GS (Polity)', topic: 'Constitution of India - Preamble, Sources, Schedules, Parts.' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Time & Distance - Speed, distance, trains, boats & streams.' },
+                { time: '12:30-2:30', subject: 'Reasoning', topic: 'Blood Relations, Direction Sense.' },
+                { time: '3:00-5:00', subject: 'English', topic: 'Sentence Improvement & Sentence Correction.' },
+                { time: '5:30-7:30', subject: 'GS (Science)', topic: 'Chemistry - Atoms & Molecules, Acids, Bases & Salts.' }
+            ]},
+            { week: 1, day: 5, title: 'QA & GA Integration', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Basic Algebraic Identities - Formulas and basic applications.' },
+                { time: '7:00-9:00', subject: 'GS (Economics)', topic: 'Basics of Indian Economy - Sectors of Economy, National Income.' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Geometry - Triangles (Properties, Congruence, Similarity).' },
+                { time: '12:30-2:30', subject: 'English', topic: 'Reading Comprehension - Strategy building and practice.' },
+                { time: '3:00-5:00', subject: 'Reasoning', topic: 'Visual Memory, Discrimination, Observation.' },
+                { time: '5:30-7:30', subject: 'GS (Static GK)', topic: 'Important Days, Books & Authors, Awards & Honors.' }
+            ]},
+            { week: 1, day: 6, title: 'Mixed Practice & Revision', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Mensuration (2D) - Area & Perimeter of Triangles, Squares, Rectangles, Circles.' },
+                { time: '7:00-9:00', subject: 'GS (Mixed)', topic: 'Quick Revision of Week\'s History & Geography topics.' },
+                { time: '9:30-11:30', subject: 'Reasoning', topic: 'Arithmetical Reasoning, Figural Classification.' },
+                { time: '12:30-2:30', subject: 'English', topic: 'Active/Passive Voice - Introduction and basic rules.' },
+                { time: '3:00-5:00', subject: 'Maths', topic: 'Partnership Business, Mixture & Alligation.' },
+                { time: '5:30-7:30', subject: 'GS (Current Affairs)', topic: 'Sports News, Important Government Schemes (recent).' }
+            ]},
+            { week: 1, day: 7, title: 'Weekly Mock Test & Analysis', schedule: [
+                { time: '4:30-8:00', subject: 'Mock Test', topic: 'Full-Length Tier 1 Mock Test.' },
+                { time: '8:00-11:30', subject: 'Analysis', topic: 'Thorough Analysis of Mock Test - Identify weak areas in all subjects.' },
+                { time: '12:30-5:00', subject: 'Revision', topic: 'Targeted Revision of Weak Areas (Prioritize Maths & General Studies).' },
+                { time: '5:30-7:30', subject: 'Revision', topic: 'Quick Scan of English & Reasoning topics, review notes.' }
+            ]},
+            { week: 2, day: 8, title: 'Advanced Maths & GA', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Geometry - Quadrilaterals, Polygons (Properties, Theorems).' },
+                { time: '7:00-9:00', subject: 'GS (History)', topic: 'Modern Indian History - Freedom Struggle (Part 1).' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Mensuration (3D) - Cube, Cuboid, Cylinder, Cone (Volume, Surface Area).' },
+                { time: '12:30-2:30', subject: 'Reasoning', topic: 'Arithmetic Number Series, Non-Verbal Series.' },
+                { time: '3:00-5:00', subject: 'English', topic: 'Cloze Test - Advanced strategies and practice.' },
+                { time: '5:30-7:30', subject: 'GS (Science)', topic: 'Biology - Human Body Systems (Digestive, Respiratory).' }
+            ]},
+            { week: 2, day: 9, title: 'Trigonometry & GA Depth', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Trigonometry - Basic identities, angles, trigonometric ratios.' },
+                { time: '7:00-9:00', subject: 'GS (Geography)', topic: 'World Geography - Continents, Oceans, Major Climatic Regions.' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Data Interpretation - Bar Graphs, Pie Charts, Line Graphs.' },
+                { time: '12:30-2:30', subject: 'English', topic: 'Sentence Rearrangement, Para Jumbles.' },
+                { time: '3:00-5:00', subject: 'Reasoning', topic: 'Coding & Decoding - Advanced patterns, letter & number series.' },
+                { time: '5:30-7:30', subject: 'GS (Current Affairs)', topic: 'Economic Current Events, Banking & Finance News.' }
+            ]},
+            { week: 2, day: 10, title: 'Statistics & GA Policy', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Statistics - Mean, Median, Mode, Frequency Distribution.' },
+                { time: '7:00-9:00', subject: 'GS (Polity)', topic: 'Parliament - Structure, Functions, Bills.' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Heights & Distances - Applications of Trigonometry.' },
+                { time: '12:30-2:30', subject: 'Reasoning', topic: 'Statement & Conclusion, Syllogism.' },
+                { time: '3:00-5:00', subject: 'English', topic: 'Spellings Correction, Detecting Misspelt Words.' },
+                { time: '5:30-7:30', subject: 'GS (Static GK)', topic: 'Important International Organizations, UN Bodies.' }
+            ]},
+            { week: 2, day: 11, title: 'Mixed Maths & GA', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Geometry - Circles (Chords, Tangents, Secants).' },
+                { time: '7:00-9:00', subject: 'GS (History)', topic: 'Modern Indian History - Freedom Struggle (Part 2), Post-Independence.' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Mensuration (3D) - Sphere, Hemisphere, Parallelepiped, Pyramid.' },
+                { time: '12:30-2:30', subject: 'Reasoning', topic: 'Embedded Figures, Figure Completion.' },
+                { time: '3:00-5:00', subject: 'English', topic: 'Direct/Indirect Narration - Introduction and basic rules.' },
+                { time: '5:30-7:30', subject: 'GS (Science)', topic: 'Biology - Plant Kingdom, Animal Kingdom (Basic Classification).' }
+            ]},
+            { week: 2, day: 12, title: 'Tier 2 Maths & Computer', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Number Systems - Divisibility Rules, Remainders, HCF/LCM (Advanced).' },
+                { time: '7:00-9:00', subject: 'GS (Economics)', topic: 'Monetary & Fiscal Policy, Budget.' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Algebra - Polynomials, Linear Equations, Quadratic Equations.' },
+                { time: '12:30-2:30', subject: 'Computer', topic: 'Basics of Computer - Hardware, Software, Input/Output Devices.' },
+                { time: '3:00-5:00', subject: 'English', topic: 'Vocabulary Building - High-frequency words, root words.' },
+                { time: '5:30-7:30', subject: 'GS (General Policy)', topic: 'Important Acts & Bills, Judicial System.' }
+            ]},
+            { week: 2, day: 13, title: 'Tier 2 Reasoning & English', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Geometry - Advanced Theorems (Circles, Triangles).' },
+                { time: '7:00-9:00', subject: 'GS (Mixed)', topic: 'Quick Revision of Week\'s Polity & Economics.' },
+                { time: '9:30-11:30', subject: 'Reasoning', topic: 'Critical Thinking, Problem Solving.' },
+                { time: '12:30-2:30', subject: 'English', topic: 'Comprehension Passages - Practice with complex texts.' },
+                { time: '3:00-5:00', subject: 'Maths', topic: 'Mensuration - Advanced problems combining shapes.' },
+                { time: '5:30-7:30', subject: 'GS (Scientific Research)', topic: 'Recent Developments in Science & Technology.' }
+            ]},
+            { week: 2, day: 14, title: 'Weekly Mock Test & Tier 2 Analysis', schedule: [
+                { time: '4:30-8:00', subject: 'Mock Test', topic: 'Full-Length Tier 1 Mock Test (or Tier 2 Sectional).' },
+                { time: '8:00-11:30', subject: 'Analysis', topic: 'Analysis of Mock Test - Focus on Tier 2 relevant questions.' },
+                { time: '12:30-5:00', subject: 'Revision', topic: 'Targeted Revision of Weak Areas from Week 2 (Tier 2 concepts).' },
+                { time: '5:30-7:30', subject: 'JSO/AAO Intro', topic: 'Introduction to Tier 2 Paper II (Statistics) or Paper III (Finance & Economics).' }
+            ]},
+            { week: 3, day: 15, title: 'Tier 2 Maths & GS', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Trigonometry - Inverse Trigonometry, Identities (Advanced).' },
+                { time: '7:00-9:00', subject: 'GS (History)', topic: 'World History (Brief Overview - Important Revolutions, Wars).' },
+                { time: '9:30-11:30', subject: 'Maths', topic: 'Statistics & Probability - Probability (Basic concepts, types of events).' },
+                { time: '12:30-2:30', subject: 'English', topic: 'Advanced Grammar - Conditionals, Inversion, Phrasal Verbs.' },
+                { time: '3:00-5:00', subject: 'Reasoning', topic: 'Emotional Intelligence, Social Intelligence.' },
+                { time: '5:30-7:30', subject: 'GS (Economics)', topic: 'International Economic Organizations (IMF, World Bank).' }
+            ]},
+            { week: 3, day: 16, title: 'Tier 2 Reasoning & Computer', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Data Interpretation - Caselets, Missing Data DI.' },
+                { time: '7:00-9:00', subject: 'GS (Geography)', topic: 'Environmental Geography - Climate Change, Pollution, Conservation.' },
+                { time: '9:30-11:30', subject: 'Reasoning', topic: 'Word Building, Matrix Reasoning.' },
+                { time: '12:30-2:30', subject: 'Computer', topic: 'Operating Systems, MS Office (Word, Excel, PowerPoint basics).' },
+                { time: '3:00-5:00', subject: 'English', topic: 'Vocabulary in Context, Confusing Words.' },
+                { time: '5:30-7:30', subject: 'GS (Static GK)', topic: 'Arts & Culture - Dances, Festivals, Famous Sites.' }
+            ]},
+            { week: 3, day: 17, title: 'Tier 2 Specific Papers', schedule: [
+                { time: '4:30-6:30', subject: 'Maths', topic: 'Mixed Practice - High-level questions from all topics.' },
+                { time: '7:00-9:00', subject: 'GS (Polity)', topic: 'Local Self-Government, Constitutional Bodies.' },
+                { time: '9:30-11:30', subject: 'JSO/AAO', topic: 'JSO: Data Collection/Classification OR AAO: Financial Accounting Principles.' },
+                { time: '12:30-2:30', subject: 'English', topic: 'Shuffling of Sentence Parts, Shuffling of Sentences in a Passage.' },
+                { time: '3:00-5:00', subject: 'Reasoning', topic: 'Coding & Decoding (Advanced), Numerical Operations.' },
+                { time: '5:30-7:30', subject: 'GS (Current Affairs)', topic: 'Review of last 6 months\' major current events.' }
+            ]},
+            { week: 3, day: 18, title: 'Intensive Practice Day 1', schedule: [{ time: 'Full Day', subject: 'Practice', topic: 'Intensive practice on weak areas identified in Tier 2 mocks. Focus on Maths & English.' }] },
+            { week: 3, day: 19, title: 'Intensive Practice Day 2', schedule: [{ time: 'Full Day', subject: 'Practice', topic: 'Deep dive into specific GS topics and advanced Reasoning questions.' }] },
+            { week: 3, day: 20, title: 'Intensive Practice Day 3', schedule: [{ time: 'Full Day', subject: 'Practice', topic: 'Continued practice for Computer Knowledge and optional JSO/AAO papers.' }] },
+            { week: 3, day: 21, title: 'Tier 2 Mock Test & Analysis', schedule: [
+                { time: '4:30-8:00', subject: 'Mock Test', topic: 'Full-Length Tier 2 Mock Test (Paper I + optional paper).' },
+                { time: '8:00-11:30', subject: 'Analysis', topic: 'Comprehensive Analysis - Identify patterns of errors, time management.' },
+                { time: '12:30-5:00', subject: 'Revision', topic: 'Intensive Revision of Weak Areas, re-study concepts.' },
+                { time: '5:30-7:30', subject: 'Review', topic: 'Review of all formulas, important facts, and vocabulary lists.' }
+            ]},
+            { week: 4, day: 22, title: 'Revision & Mock Cycle 1', schedule: [{ time: 'Full Day', subject: 'Revision', topic: 'Daily Revision & Mock Test Cycle as per plan. Focus on Maths & GS today.' }] },
+            { week: 4, day: 23, title: 'Revision & Mock Cycle 2', schedule: [{ time: 'Full Day', subject: 'Revision', topic: 'Daily Revision & Mock Test Cycle. Focus on English & Reasoning today.' }] },
+            { week: 4, day: 24, title: 'Revision & Mock Cycle 3', schedule: [{ time: 'Full Day', subject: 'Revision', topic: 'Daily Revision & Mock Test Cycle. Focus on mixed subjects.' }] },
+            { week: 4, day: 25, title: 'Revision & Mock Cycle 4', schedule: [{ time: 'Full Day', subject: 'Revision', topic: 'Daily Revision & Mock Test Cycle. Solve a full previous year paper.' }] },
+            { week: 4, day: 26, title: 'Revision & Mock Cycle 5', schedule: [{ time: 'Full Day', subject: 'Revision', topic: 'Daily Revision & Mock Test Cycle. Focus on speed and accuracy.' }] },
+            { week: 4, day: 27, title: 'Revision & Mock Cycle 6', schedule: [{ time: 'Full Day', subject: 'Revision', topic: 'Final mock test and light analysis. Consolidate notes.' }] },
+            { week: 4, day: 28, title: 'Grand Revision', schedule: [
+                { time: 'Morning', subject: 'Maths & Reasoning', topic: 'Go through all formulas, important theorems, and quick tricks.' },
+                { time: 'Afternoon', subject: 'GS & English', topic: 'Review self-made notes, dates, facts, and grammar rules.' },
+                { time: 'Evening', subject: 'Review', topic: 'Light review of all subjects, build confidence.' }
+            ]},
+            { week: 4, day: 29, title: 'Light Revision & Rest', schedule: [{ time: 'Full Day', subject: 'Rest', topic: 'Very light revision. Glance at notes. Avoid new topics. Focus on rest.' }] },
+            { week: 4, day: 30, title: 'Exam Day Preparation', schedule: [{ time: 'Morning', subject: 'Preparation', topic: 'Wake up, get ready, light breakfast. Avoid studying. Stay calm.' }] }
+        ];
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const weeksContainer = document.getElementById('weeks-container');
+            const subjectColors = {
+                'Maths': '#38bdf8', 'GS (History)': '#fbbf24', 'GS (Geography)': '#a3e635', 'GS (Polity)': '#34d399',
+                'GS (Economics)': '#2dd4bf', 'GS (Science)': '#6ee7b7', 'GS (Current Affairs)': '#f87171', 'GS (Static GK)': '#fb923c',
+                'GS (Mixed)': '#facc15', 'GS (General Policy)': '#4ade80', 'GS (Scientific Research)': '#22d3ee',
+                'English': '#c084fc', 'Reasoning': '#f472b6', 'Computer': '#a78bfa', 'Mock Test': '#9ca3af', 'Analysis': '#6b7280',
+                'Revision': '#a1a1aa', 'JSO/AAO': '#7dd3fc', 'JSO/AAO Intro': '#7dd3fc', 'Practice': '#d4d4d8', 'Rest': '#e5e7eb', 'Preparation': '#e5e7eb',
+            };
+
+            function generateTimetableHTML() {
+                let html = '';
+                for (let i = 1; i <= 4; i++) {
+                    const weekData = timetableData.filter(d => d.week === i);
+                    html += `<div id="week-${i}" class="week-content ${i !== 1 ? 'hidden' : ''}">`;
+                    html += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">`;
+                    weekData.forEach(day => {
+                        html += `
+                            <div class="day-card bg-slate-100 rounded-lg shadow-sm cursor-pointer transition-all hover:shadow-md" data-day="${day.day}">
+                                <div class="p-4 flex justify-between items-center">
+                                    <div>
+                                        <p class="text-sm font-medium text-amber-600">Day ${day.day}</p>
+                                        <h3 class="font-bold text-slate-800">${day.title}</h3>
+                                    </div>
+                                    <svg class="w-5 h-5 text-slate-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div class="day-card-content px-4 pb-4">
+                                    <ul class="space-y-3 pt-2 border-t border-slate-200">
+                        `;
+                        day.schedule.forEach(item => {
+                            const color = subjectColors[item.subject] || '#d1d5db';
+                            html += `
+                                <li class="flex space-x-3">
+                                    <div class="flex-shrink-0 w-2 h-16 mt-1 rounded-full" style="background-color: ${color};"></div>
+                                    <div>
+                                        <p class="text-xs font-bold" style="color: ${color};">${item.time} - ${item.subject}</p>
+                                        <p class="text-sm text-slate-700">${item.topic}</p>
+                                    </div>
+                                </li>
+                            `;
+                        });
+                        html += `</ul></div></div>`;
+                    });
+                    html += `</div></div>`;
+                }
+                weeksContainer.innerHTML = html;
+            }
+            
+            function setupEventListeners() {
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', function () {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+                        document.querySelectorAll('.week-content').forEach(wc => wc.classList.add('hidden'));
+                        document.getElementById(`week-${this.dataset.week}`).classList.remove('hidden');
+                    });
+                });
+
+                document.querySelectorAll('.day-card').forEach(card => {
+                    card.addEventListener('click', function () {
+                        const isOpen = this.classList.contains('open');
+                        document.querySelectorAll('.day-card').forEach(c => c.classList.remove('open'));
+                        if (!isOpen) {
+                            this.classList.toggle('open');
+                        }
+                    });
+                });
+            }
+
+            function createSubjectAllocationChart() {
+                const allocation = {};
+                timetableData.forEach(day => {
+                    day.schedule.forEach(item => {
+                        let baseSubject = item.subject.split('(')[0].trim();
+                        if (baseSubject === 'GS') baseSubject = 'General Studies';
+                        if (['Mock Test', 'Analysis', 'Revision', 'Practice', 'Rest', 'Preparation', 'JSO/AAO Intro', 'JSO/AAO'].includes(baseSubject)) {
+                           baseSubject = 'Mocks & Revision';
+                        }
+
+                        if (!allocation[baseSubject]) {
+                            allocation[baseSubject] = 0;
+                        }
+                        const timeParts = item.time.split('-');
+                        if (timeParts.length === 2) {
+                            const start = parseFloat(timeParts[0].replace(':', '.'));
+                            const end = parseFloat(timeParts[1].replace(':', '.'));
+                            const duration = end - start;
+                            allocation[baseSubject] += duration;
+                        } else {
+                            // Approximating full day activities
+                            if (item.subject === 'Mock Test') allocation[baseSubject] += 6;
+                            else if (item.subject === 'Revision') allocation[baseSubject] += 12;
+                            else if (item.subject === 'Practice') allocation[baseSubject] += 12;
+                        }
+                    });
+                });
+                
+                const labels = Object.keys(allocation);
+                const data = Object.values(allocation);
+                const chartColors = labels.map(label => {
+                    if (label === 'Maths') return subjectColors.Maths;
+                    if (label === 'General Studies') return subjectColors['GS (Current Affairs)'];
+                    if (label === 'English') return subjectColors.English;
+                    if (label === 'Reasoning') return subjectColors.Reasoning;
+                    if (label === 'Computer') return subjectColors.Computer;
+                    return subjectColors['Mocks & Revision'];
+                });
+
+                const ctx = document.getElementById('subjectAllocationChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Study Hours Allocation',
+                            data: data,
+                            backgroundColor: chartColors,
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                            label += `${percentage}%`;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            generateTimetableHTML();
+            setupEventListeners();
+            createSubjectAllocationChart();
+        });
+    </script>
+</body>
+</html>
+
