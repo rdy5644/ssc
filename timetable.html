@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive SSC CGL Study Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Slate & Amber -->
+    <!-- Application Structure Plan: The SPA is designed with a user-centric, tabbed interface to transform the static report into a dynamic tool. The default tab, 'Today's Plan', provides immediate, actionable tasks with the current time slot highlighted, promoting focus. The 'Monthly Calendar' tab offers a visual and interactive way to explore the entire study schedule, making planning intuitive. The 'Progress Overview' tab uses charts to provide motivational feedback on topic coverage and subject-wise effort distribution. This structure was chosen over a linear report format to enhance usability, engagement, and personal progress tracking. -->
+    <!-- Visualization & Content Choices: 
+        - Today's Plan: [Goal: Inform/Organize] -> [Viz: Interactive List] -> [Interaction: Current time highlight, Checkboxes with localStorage persistence] -> [Justification: Provides immediate, actionable daily tasks and a sense of completion that persists across sessions.] -> [Library: Vanilla JS/HTML].
+        - Monthly Calendar: [Goal: Organize/Explore] -> [Viz: Interactive Grid/Calendar] -> [Interaction: Click to view daily topics] -> [Justification: More intuitive and less cluttered than static tables for long-term planning.] -> [Library: Vanilla JS/HTML].
+        - Progress Overview: [Goal: Compare/Motivate] -> [Viz: Donut & Bar Charts] -> [Interaction: Dynamic data display based on persistent progress] -> [Justification: Visual representation of progress is more impactful and motivating than raw data.] -> [Library: Chart.js/Canvas].
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab-active { border-bottom-color: #f59e0b; color: #f59e0b; }
+        .tab-inactive { border-bottom-color: transparent; color: #64748b; }
+        .task-current { background-color: #fffbeb; border-left-color: #f59e0b; }
+        .calendar-today { background-color: #f59e0b; color: white; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-slate-900">SSC CGL Interactive Study Plan</h1>
+            <p class="text-slate-600 mt-2">Your dynamic guide to disciplined preparation.</p>
+        </header>
+
+        <nav class="mb-8 border-b border-slate-200">
+            <ul class="flex justify-center -mb-px space-x-6 sm:space-x-8">
+                <li><button class="tab-button text-sm sm:text-base font-medium py-3 px-1 border-b-2 transition-colors duration-200" data-tab="today">Today's Plan</button></li>
+                <li><button class="tab-button text-sm sm:text-base font-medium py-3 px-1 border-b-2 transition-colors duration-200" data-tab="calendar">Monthly Calendar</button></li>
+                <li><button class="tab-button text-sm sm:text-base font-medium py-3 px-1 border-b-2 transition-colors duration-200" data-tab="progress">Progress Overview</button></li>
+            </ul>
+        </nav>
+
+        <main>
+            <div id="today" class="tab-content">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h2 class="text-2xl font-semibold text-slate-900 mb-1">Today's Schedule</h2>
+                    <p class="text-slate-500 mb-6" id="current-date-display"></p>
+                    <div id="daily-schedule-container" class="space-y-3">
+                    </div>
+                </div>
+            </div>
+
+            <div id="calendar" class="tab-content hidden">
+                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h2 class="text-2xl font-semibold text-slate-900 mb-1">Monthly Topic Distribution</h2>
+                    <p class="text-slate-500 mb-6">A comprehensive 4-week plan. Click on a day to see the topics.</p>
+                    <div id="monthly-calendar-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    </div>
+                </div>
+            </div>
+
+            <div id="progress" class="tab-content hidden">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h2 class="text-2xl font-semibold text-slate-900 mb-1">Preparation Overview</h2>
+                    <p class="text-slate-500 mb-8">Visualizing your study distribution and topic coverage for the month.</p>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                        <div class="chart-container relative w-full max-w-md mx-auto h-72 sm:h-80">
+                            <canvas id="subjectHoursChart"></canvas>
+                        </div>
+                        <div class="chart-container relative w-full max-w-md mx-auto h-72 sm:h-80">
+                            <canvas id="topicCompletionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dailySchedule = [
+                { time: "6:00 AM - 6:30 AM", duration: 0.5, subject: "Lifestyle", task: "Wake Up & Refresh" },
+                { time: "6:30 AM - 7:30 AM", duration: 1, subject: "General Awareness", task: "Current Affairs" },
+                { time: "7:30 AM - 8:30 AM", duration: 1, subject: "English", task: "Vocabulary Building" },
+                { time: "8:30 AM - 9:15 AM", duration: 0.75, subject: "Break", task: "Breakfast & Break" },
+                { time: "9:15 AM - 11:15 AM", duration: 2, subject: "Quantitative Aptitude", task: "Conceptual Learning" },
+                { time: "11:15 AM - 11:30 AM", duration: 0.25, subject: "Break", task: "Short Break" },
+                { time: "11:30 AM - 1:00 PM", duration: 1.5, subject: "Reasoning", task: "Conceptual Learning" },
+                { time: "1:00 PM - 2:00 PM", duration: 1, subject: "Break", task: "Lunch Break" },
+                { time: "2:00 PM - 3:30 PM", duration: 1.5, subject: "Quantitative Aptitude", task: "Practice Session" },
+                { time: "3:30 PM - 3:45 PM", duration: 0.25, subject: "Break", task: "Short Break" },
+                { time: "3:45 PM - 5:00 PM", duration: 1.25, subject: "Reasoning", task: "Practice Session" },
+                { time: "5:00 PM - 6:00 PM", duration: 1, subject: "Revision", task: "Daily Revision" },
+                { time: "6:00 PM - 7:00 PM", duration: 1, subject: "Break", task: "Physical Activity" },
+                { time: "7:00 PM - 8:00 PM", duration: 1, subject: "General Awareness", task: "Static GK" },
+                { time: "8:00 PM - 9:00 PM", duration: 1, subject: "English", task: "Grammar / Comprehension" },
+                { time: "9:00 PM - 9:30 PM", duration: 0.5, subject: "Break", task: "Dinner" },
+                { time: "9:30 PM - 10:30 PM", duration: 1, subject: "Mock Test", task: "Sectional Test / PYP" },
+                { time: "10:30 PM - 11:00 PM", duration: 0.5, subject: "Analysis", task: "Mock Test Analysis" },
+                { time: "11:00 PM onwards", duration: 0, subject: "Lifestyle", task: "Wind Down & Sleep" }
+            ];
+
+            const monthlyPlan = [
+                { week: 1, day: "Saturday", quant: "Percentage", reasoning: "Analogy" },
+                { week: 1, day: "Sunday", quant: "Revision & Full Mock Test 1", reasoning: "Revision & Full Mock Test 1" },
+                { week: 1, day: "Monday", quant: "Profit & Loss", reasoning: "Classification (Odd one out)" },
+                { week: 1, day: "Tuesday", quant: "Ratio & Proportion", reasoning: "Coding-Decoding" },
+                { week: 1, day: "Wednesday", quant: "Mixture & Alligation", reasoning: "Number & Alphabetical Series" },
+                { week: 1, day: "Thursday", quant: "Time & Work", reasoning: "Blood Relations" },
+                { week: 1, day: "Friday", quant: "Pipes & Cisterns", reasoning: "Syllogism" },
+                { week: 2, day: "Saturday", quant: "Time, Speed & Distance", reasoning: "Venn Diagrams" },
+                { week: 2, day: "Sunday", quant: "Revision & Full Mock Test 2", reasoning: "Revision & Full Mock Test 2" },
+                { week: 2, day: "Monday", quant: "Problems on Trains", reasoning: "Direction & Distances" },
+                { week: 2, day: "Tuesday", quant: "Boats & Streams", reasoning: "Order & Ranking" },
+                { week: 2, day: "Wednesday", quant: "Averages", reasoning: "Puzzles (Seating Arrangement)" },
+                { week: 2, day: "Thursday", quant: "Partnership", reasoning: "Statement & Conclusions" },
+                { week: 2, day: "Friday", quant: "Number System (Basics, Divisibility)", reasoning: "Statement & Assumptions" },
+                { week: 3, day: "Saturday", quant: "Algebra (Basic Identities, Linear Eq.)", reasoning: "Mirror & Water Images" },
+                { week: 3, day: "Sunday", quant: "Revision & Full Mock Test 3", reasoning: "Revision & Full Mock Test 3" },
+                { week: 3, day: "Monday", quant: "Geometry (Lines, Angles, Triangles)", reasoning: "Paper Folding & Cutting" },
+                { week: 3, day: "Tuesday", quant: "Geometry (Circles, Quadrilaterals)", reasoning: "Embedded Figures" },
+                { week: 3, day: "Wednesday", quant: "Mensuration 2D (Triangle, Sq, Rect)", reasoning: "Figure Completion" },
+                { week: 3, day: "Thursday", quant: "Mensuration 2D (Circle, Polygon)", reasoning: "Figure Series" },
+                { week: 3, day: "Friday", quant: "Mensuration 3D (Cube, Cuboid)", reasoning: "Figure Analogy & Classification" },
+                { week: 4, day: "Saturday", quant: "Mensuration 3D (Cylinder, Cone)", reasoning: "Dice & Cubes" },
+                { week: 4, day: "Sunday", quant: "Revision & Full Mock Test 4", reasoning: "Revision & Full Mock Test 4" },
+                { week: 4, day: "Monday", quant: "Mensuration 3D (Sphere, Hemisphere)", reasoning: "Calendar & Clock" },
+                { week: 4, day: "Tuesday", quant: "Trigonometry (Ratios, Identities)", reasoning: "Mathematical Operations" },
+                { week: 4, day: "Wednesday", quant: "Trigonometry (Heights & Distances)", reasoning: "Word Formation & Logical Sequence" },
+                { week: 4, day: "Thursday", quant: "Data Interpretation (Tables, Bar, Pie)", reasoning: "Mixed Reasoning Practice" },
+                { week: 4, day: "Friday", quant: "Data Interpretation (Line, Histogram)", reasoning: "Mixed Reasoning Practice" }
+            ];
+
+            const subjectColors = { "Quantitative Aptitude": "rgba(59, 130, 246, 0.7)", "Reasoning": "rgba(139, 92, 246, 0.7)", "English": "rgba(239, 68, 68, 0.7)", "General Awareness": "rgba(16, 185, 129, 0.7)", "Revision": "rgba(245, 158, 11, 0.7)", "Mock Test": "rgba(217, 70, 239, 0.7)", "Analysis": "rgba(107, 114, 128, 0.7)", "Break": "rgba(209, 213, 219, 0.7)", "Lifestyle": "rgba(209, 213, 219, 0.7)" };
+            const subjectBorderColors = { "Quantitative Aptitude": "rgb(59, 130, 246)", "Reasoning": "rgb(139, 92, 246)", "English": "rgb(239, 68, 68)", "General Awareness": "rgb(16, 185, 129)", "Revision": "rgb(245, 158, 11)", "Mock Test": "rgb(217, 70, 239)", "Analysis": "rgb(107, 114, 128)", "Break": "rgb(209, 213, 219)", "Lifestyle": "rgb(209, 213, 219)" };
+
+            const appState = {
+                activeTab: 'today',
+                startDate: new Date('2025-07-05T00:00:00'),
+                charts: {},
+                completedTasks: []
+            };
+
+            function getTodayKey() {
+                return new Date().toISOString().split('T')[0];
+            }
+
+            function loadState() {
+                const todayKey = getTodayKey();
+                const savedState = localStorage.getItem(`completedTasks_${todayKey}`);
+                if (savedState) {
+                    appState.completedTasks = JSON.parse(savedState);
+                } else {
+                    appState.completedTasks = [];
+                }
+            }
+
+            function saveState() {
+                const todayKey = getTodayKey();
+                localStorage.setItem(`completedTasks_${todayKey}`, JSON.stringify(appState.completedTasks));
+            }
+
+            function init() {
+                loadState();
+                setupTabs();
+                renderTodaySchedule();
+                renderMonthlyCalendar();
+                renderCharts();
+                updateActiveTab();
+                updateCompletionChart();
+                setInterval(highlightCurrentTask, 60000);
+            }
+            
+            function setupTabs() {
+                const tabButtons = document.querySelectorAll('.tab-button');
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        appState.activeTab = button.dataset.tab;
+                        updateActiveTab();
+                    });
+                });
+            }
+
+            function updateActiveTab() {
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                document.querySelectorAll('.tab-button').forEach(button => {
+                    button.classList.remove('tab-active');
+                    button.classList.add('tab-inactive');
+                });
+
+                document.getElementById(appState.activeTab).classList.remove('hidden');
+                document.querySelector(`.tab-button[data-tab="${appState.activeTab}"]`).classList.add('tab-active');
+            }
+
+            function renderTodaySchedule() {
+                const container = document.getElementById('daily-schedule-container');
+                const currentDate = new Date();
+                document.getElementById('current-date-display').textContent = currentDate.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                container.innerHTML = '';
+                dailySchedule.forEach((item, index) => {
+                    const taskId = `task-${index}`;
+                    const isChecked = appState.completedTasks.includes(taskId);
+                    const subjectColor = subjectColors[item.subject] || 'rgba(156, 163, 175, 0.7)';
+                    const itemHtml = `
+                        <div class="daily-task flex items-center p-4 rounded-lg bg-slate-50 border border-slate-200 border-l-4" style="border-left-color: ${subjectColor}" data-time="${item.time}">
+                            <div class="flex-shrink-0 mr-4">
+                                <input type="checkbox" id="${taskId}" class="h-5 w-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500" ${isChecked ? 'checked' : ''}>
+                            </div>
+                            <div class="flex-grow">
+                                <p class="font-semibold text-slate-800">${item.task}</p>
+                                <p class="text-sm text-slate-500">${item.subject}</p>
+                            </div>
+                            <div class="flex-shrink-0 ml-4 text-right">
+                                <p class="text-sm font-medium text-slate-700">${item.time}</p>
+                            </div>
+                        </div>`;
+                    container.innerHTML += itemHtml;
+                });
+                
+                container.addEventListener('change', (e) => {
+                    if (e.target.type === 'checkbox') {
+                        const taskId = e.target.id;
+                        if (e.target.checked) {
+                            if (!appState.completedTasks.includes(taskId)) {
+                                appState.completedTasks.push(taskId);
+                            }
+                        } else {
+                            appState.completedTasks = appState.completedTasks.filter(id => id !== taskId);
+                        }
+                        saveState();
+                        updateCompletionChart();
+                    }
+                });
+
+                highlightCurrentTask();
+            }
+
+            function getHourMinute(timeStr) {
+                const [time, period] = timeStr.split(' ');
+                let [hours, minutes] = time.split(':').map(Number);
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
+                return { hours, minutes: minutes || 0 };
+            }
+
+            function highlightCurrentTask() {
+                const now = new Date();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+                document.querySelectorAll('.daily-task').forEach(el => el.classList.remove('task-current'));
+
+                for (const item of dailySchedule) {
+                    const timeRange = item.time.split(' - ');
+                    if (timeRange.length < 2) continue;
+
+                    const start = getHourMinute(timeRange[0]);
+                    const end = getHourMinute(timeRange[1]);
+                    const startMinutes = start.hours * 60 + start.minutes;
+                    let endMinutes = end.hours * 60 + end.minutes;
+                    if (endMinutes < startMinutes) endMinutes += 24 * 60; 
+
+                    if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+                        const taskElement = document.querySelector(`.daily-task[data-time="${item.time}"]`);
+                        if(taskElement) {
+                            taskElement.classList.add('task-current');
+                            taskElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        break;
+                    }
+                }
+            }
+
+            function renderMonthlyCalendar() {
+                const container = document.getElementById('monthly-calendar-container');
+                container.innerHTML = '';
+                let currentDate = new Date(appState.startDate);
+                let currentWeek = 0;
+                let weekContainer;
+
+                monthlyPlan.forEach((planItem, index) => {
+                    if(planItem.week !== currentWeek) {
+                        currentWeek = planItem.week;
+                        const weekWrapper = document.createElement('div');
+                        weekWrapper.className = "space-y-4";
+                        weekWrapper.innerHTML = `<h3 class="text-lg font-semibold text-slate-800 border-b pb-2">Week ${currentWeek}</h3>`;
+                        container.appendChild(weekWrapper);
+                        weekContainer = weekWrapper;
+                    }
+                    
+                    const dayCard = document.createElement('div');
+                    const isToday = (new Date().toDateString() === currentDate.toDateString());
+                    dayCard.className = `p-4 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${isToday ? 'calendar-today' : 'bg-white'}`;
+                    
+                    dayCard.innerHTML = `
+                        <div class="flex justify-between items-center mb-3">
+                            <p class="font-bold ${isToday ? 'text-white' : 'text-slate-800'}">${planItem.day}</p>
+                            <p class="text-sm font-medium ${isToday ? 'text-amber-200' : 'text-slate-500'}">${currentDate.toLocaleDateString('en-GB', {day: '2-digit', month: 'short'})}</p>
+                        </div>
+                        <div class="day-details">
+                            <div class="flex items-start space-x-3">
+                                <span class="text-xs font-bold text-blue-500 mt-1">Quant</span>
+                                <p class="text-sm ${isToday ? 'text-white' : 'text-slate-600'}">${planItem.quant}</p>
+                            </div>
+                            <div class="flex items-start space-x-3 mt-2">
+                                <span class="text-xs font-bold text-purple-500 mt-1">Logic</span>
+                                <p class="text-sm ${isToday ? 'text-white' : 'text-slate-600'}">${planItem.reasoning}</p>
+                            </div>
+                        </div>
+                    `;
+                    weekContainer.appendChild(dayCard);
+                    
+                    currentDate.setDate(currentDate.getDate() + 1);
+                });
+            }
+            
+            function updateCompletionChart() {
+                if (!appState.charts.topicCompletion) return;
+                const topicCount = monthlyPlan.filter(p => !p.quant.toLowerCase().includes('revision')).length * 2;
+                const studyTasks = dailySchedule.filter(t => t.subject === 'Quantitative Aptitude' || t.subject === 'Reasoning');
+                const checkedStudyTasks = appState.completedTasks.filter(taskId => {
+                    const index = parseInt(taskId.split('-')[1]);
+                    return studyTasks.some(task => dailySchedule.indexOf(task) === index);
+                }).length;
+                
+                const topicsCompleted = Math.floor((checkedStudyTasks / studyTasks.length) * 2);
+
+                appState.charts.topicCompletion.data.datasets[0].data = [topicsCompleted, topicCount - topicsCompleted];
+                appState.charts.topicCompletion.update();
+            }
+
+            function renderCharts() {
+                const studyHours = dailySchedule.reduce((acc, item) => {
+                    const subject = item.subject;
+                    if (!['Break', 'Lifestyle'].includes(subject)) {
+                        acc[subject] = (acc[subject] || 0) + item.duration;
+                    }
+                    return acc;
+                }, {});
+
+                const topicCount = monthlyPlan.filter(p => !p.quant.toLowerCase().includes('revision')).length * 2;
+                
+                if (appState.charts.subjectHours) appState.charts.subjectHours.destroy();
+                const subjectCtx = document.getElementById('subjectHoursChart').getContext('2d');
+                appState.charts.subjectHours = new Chart(subjectCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(studyHours),
+                        datasets: [{
+                            label: 'Daily Study Hours',
+                            data: Object.values(studyHours),
+                            backgroundColor: Object.keys(studyHours).map(s => subjectColors[s]),
+                            borderColor: Object.keys(studyHours).map(s => subjectBorderColors[s]),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Daily Study Hours per Subject' }, legend: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Hours' } } } }
+                });
+                
+                if (appState.charts.topicCompletion) appState.charts.topicCompletion.destroy();
+                const completionCtx = document.getElementById('topicCompletionChart').getContext('2d');
+                appState.charts.topicCompletion = new Chart(completionCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Completed Topics', 'Remaining Topics'],
+                        datasets: [{ data: [0, topicCount], backgroundColor: ['rgba(16, 185, 129, 0.7)', 'rgba(239, 68, 68, 0.7)'], borderColor: ['rgb(16, 185, 129)', 'rgb(239, 68, 68)'], borderWidth: 1 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Monthly Topic Coverage' }, tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) { label += ': '; } if (context.parsed !== null) { label += context.parsed; } return label; } } } } }
+                });
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
